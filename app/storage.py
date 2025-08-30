@@ -1,6 +1,7 @@
 import json
 import logging
 from abc import ABC, abstractmethod
+from decimal import Decimal
 from typing import Any
 
 import boto3
@@ -81,6 +82,19 @@ class DynamoDBStorage(Storage):
                 item_data = item.model_dump(mode="json")
                 item_data["PK"] = item.id
                 item_data["SK"] = item.sk
+                
+                # Convert float values to Decimal for DynamoDB compatibility
+                def convert_floats_to_decimals(obj):
+                    if isinstance(obj, dict):
+                        return {k: convert_floats_to_decimals(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [convert_floats_to_decimals(v) for v in obj]
+                    elif isinstance(obj, float):
+                        return Decimal(str(obj))
+                    else:
+                        return obj
+                
+                item_data = convert_floats_to_decimals(item_data)
                 
                 # Put item to DynamoDB
                 self.table.put_item(Item=item_data)
